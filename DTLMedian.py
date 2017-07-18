@@ -33,7 +33,7 @@ import optparse
 from operator import itemgetter
 import numpy as np
 import DTLReconGraph
-import NewDiameter
+import Diameter
 
 
 def mapping_node_sort(ordered_gene_node_list, ordered_species_node_list, mapping_node_list):
@@ -122,7 +122,8 @@ def generate_scores(preorder_mapping_node_list, dtl_recon_graph, gene_root):
 
     #TODO: Do we still need this?
     for mapping_node in preorder_mapping_node_list:
-        scores[mapping_node] = scores[mapping_node] / float(count)
+        for event in dtl_recon_graph[mapping_node]:
+                event_scores[event] = event_scores[event] / float(count)
 
     return event_scores, count
 
@@ -201,7 +202,7 @@ def calculate_scores_for_children(mapping_node, dtl_recon_graph, event_scores, s
         scores[mapping_child1] += event_scores[event_node]
         scores[mapping_child2] += event_scores[event_node]
 
-# TODO: Start code review here!
+
 def compute_median(dtl_recon_graph, event_scores, postorder_mapping_nodes, mpr_roots):
     """
     :param dtl_recon_graph: A dictionary representing a DTL Recon Graph.
@@ -236,6 +237,7 @@ def compute_median(dtl_recon_graph, event_scores, postorder_mapping_nodes, mpr_r
         # Get the events for the current mapping node and their running (frequency - 0.5) sums, in a list
         events = list()
         for event in dtl_recon_graph[map_node]:
+            #TODO: comment what the indices represent, or make a helper function that makes it obvious
             if event[0] == 'L':  # Losses produce only one child, so we only need to look to one lower mapping node
                 events.append((event, sum_freqs[event[1]][1] + event_scores[event] - 0.5))
             else:  # Only other options are T, S, and D, which produce two children
@@ -261,7 +263,9 @@ def compute_median(dtl_recon_graph, event_scores, postorder_mapping_nodes, mpr_r
     # Get all possible roots of the graph and their running frequency scores, in a list, for later use
     possible_root_combos = [(root, sum_freqs[root][1]) for root in mpr_roots]
 
+    # TODO: make this block (for loop) more concise, use filter
     # Find the best (frequency - 0.5) sum in the entire graph based at the roots and the corresponding roots
+    # TODO: explain what these variables represent
     best_sum = None
     best_roots = list()
     for root_combo in possible_root_combos:
@@ -283,12 +287,14 @@ def compute_median(dtl_recon_graph, event_scores, postorder_mapping_nodes, mpr_r
 
         # We just ignore the less than case since it's not a better result
 
+    #TODO: shorten these next two lines to one
     # Adjust the sum_freqs dictionary so we can use it with the buildDTLReconGraph function from DTLReconGraph.py
     for map_node in sum_freqs:
 
         # We place the event tuples into lists so they work well with the diameter algorithm
         sum_freqs[map_node] = sum_freqs[map_node][0]  # Only use the event, no longer the associated frequency sum
 
+    # TODO: make a comment reminding what the arguments passed here represent, esp. the sum_freqs arg
     # Use the buildDTLReconGraph function from DTLReconGraph.py to find the median recon graph
     med_recon_graph = DTLReconGraph.build_dtl_recon_graph(best_roots, sum_freqs, {})
 
@@ -324,6 +330,7 @@ def check_subgraph(recon_graph, subrecon):
     return True
 
 
+#TODO: do we use this anymore?
 def build_median_recon_graph(event_dict, root):
     """
     :param event_dict: a dictionary with mapping nodes for keys and values which are the single event that mapping
@@ -460,8 +467,8 @@ def main():
                                                                                                       transfer, loss)
 
             # Reformat gene tree and get info on it, as well as for the species tree in the following line
-            postorder_gene_tree, gene_tree_root, gene_node_count = NewDiameter.reformat_tree(gene_tree, "pTop")
-            postorder_species_tree, species_tree_root, species_node_count = NewDiameter.reformat_tree(species_tree,
+            postorder_gene_tree, gene_tree_root, gene_node_count = Diameter.reformat_tree(gene_tree, "pTop")
+            postorder_species_tree, species_tree_root, species_node_count = Diameter.reformat_tree(species_tree,
                                                                                                       "hTop")
 
             # Get a list of the mapping nodes in preorder

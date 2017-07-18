@@ -3,7 +3,7 @@
 # This file contains the ability to actually calculate the diameter or median diameter of single or multiple files.
 # It contains the best CLI and is the only file that should be really used on the command line.
 
-import NewDiameter
+import Diameter
 import csv
 import time
 import DTLReconGraph
@@ -102,8 +102,8 @@ def find_worst_median_distance(species_tree, gene_tree, gene_tree_root, dtl_reco
     :return:                        An entry to be added to the results list containing the Worst Median Distance
     """
     start_time = time.clock()
-    worst_median_distance = NewDiameter.new_diameter_algorithm(species_tree, gene_tree, gene_tree_root,
-                                                               median_reconciliation, dtl_recon_graph, debug, False)
+    worst_median_distance = Diameter.diameter_algorithm(species_tree, gene_tree, gene_tree_root,
+                                                        median_reconciliation, dtl_recon_graph, debug, False)
     worst_median_distance_time_taken = time.clock() - start_time
     return [("Worst Median Distance", worst_median_distance, worst_median_distance_time_taken)]
 
@@ -120,8 +120,8 @@ def find_median_diameter(species_tree, gene_tree, gene_tree_root, median_reconci
     :return:                        An entry to be added to the results list containing the Worst Median Distance
     """
     start_time = time.clock()
-    median_diameter = NewDiameter.new_diameter_algorithm(species_tree, gene_tree, gene_tree_root,
-                                                         median_reconciliation, median_reconciliation, debug, False)
+    median_diameter = Diameter.diameter_algorithm(species_tree, gene_tree, gene_tree_root,
+                                                  median_reconciliation, median_reconciliation, debug, False)
     worst_median_diameter_time_taken = time.clock() - start_time
     return [("Median Diameter", median_diameter, worst_median_diameter_time_taken)]
 
@@ -186,8 +186,8 @@ def find_median_cluster(filename, log, costs, gene_tree, gene_tree_root, species
             random_median_diameter = old_medians[median_hash]
             end_sub_time = 0
         else:
-            random_median_diameter = NewDiameter.new_diameter_algorithm(species_tree, gene_tree, gene_tree_root,
-                                                                        random_median, dtl_recon_graph, False, False)
+            random_median_diameter = Diameter.diameter_algorithm(species_tree, gene_tree, gene_tree_root,
+                                                                 random_median, dtl_recon_graph, False, False)
             old_medians[median_hash] = random_median_diameter
 
             end_sub_time = time.clock() - start_sub_time
@@ -199,7 +199,6 @@ def find_median_cluster(filename, log, costs, gene_tree, gene_tree_root, species
         random_median_diameters += [random_median_diameter]
 
         if log is not None:
-            # TODO make filename not include folder or extension for here
             write_to_csv(file_log_path, costs, filename, n_meds, -1, -1,
                          -1, sub_results)
 
@@ -221,15 +220,21 @@ def calculate_diameter_from_file(filename, D, T, L, log=None, debug=False, verbo
      as measured by the symmetric set distance between the events of the two reconciliations of the pair
       that has the highest such difference.
 
+
       :param filename:      The path to the newick tree file to reconcile
       :param D:             The cost for duplication events
       :param T:             The cost for transfer events
       :param L:             The cost for loss events
       :param log:           The csv file to output results to (will create it if it does not exist)
       :param debug:         Whether to print out all of the tables
+      :param verbose:       Whether we should print our results to the screen
+      :param zero_loss:     Whether we should also calculate the regular diameter when losses don't cost anything?
+      :param median:        Whether we should count the number of medians (and find the median reconciliation graph)
+      :param worst_median:  Whether we should find the distance to furthest MPR of the worst median
+      :param median_cluster: The number of random medians we should find the distance to furthest MPR is (or 0 for not
+                              doing that.
+      :param median_diameter: Whether we should calculate the diameter of median-space.
       :return:              Nothing, but we output results to a csv file."""
-
-    # TODO Update docstring
 
     # These statements check to make sure that all arguments were entered correctly.
     assert isinstance(log, (str, unicode)) or log is None
@@ -247,12 +252,12 @@ def calculate_diameter_from_file(filename, D, T, L, log=None, debug=False, verbo
 
     # The gene tree needs to be in node format, not edge format, so we find that now.
     # (This also puts the gene_tree into postorder, as an ordered dict)
-    gene_tree, gene_tree_root, gene_node_count = NewDiameter.reformat_tree(edge_gene_tree, "pTop")
+    gene_tree, gene_tree_root, gene_node_count = Diameter.reformat_tree(edge_gene_tree, "pTop")
 
-    species_tree, species_tree_root, species_node_count = NewDiameter.reformat_tree(edge_species_tree, "hTop")
+    species_tree, species_tree_root, species_node_count = Diameter.reformat_tree(edge_species_tree, "hTop")
 
     # The DTL reconciliation graph as provided by DTLReconGraph has some extraneous numbers. We remove those here.
-    NewDiameter.clean_graph(dtl_recon_graph, gene_tree_root)
+    Diameter.clean_graph(dtl_recon_graph, gene_tree_root)
 
     # And record the amount of time DTLReconGraph + cleaning up the graph took
     DTLReconGraph_time_taken = time.clock() - start_time
@@ -266,7 +271,7 @@ def calculate_diameter_from_file(filename, D, T, L, log=None, debug=False, verbo
     start_time = time.clock()
 
     # Now we draw the rest of the owl
-    diameter = NewDiameter.new_diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph, debug, False)
+    diameter = Diameter.diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph, debug, False)
 
     # And record how long it took to compute the diameter.
     diameter_time_taken = time.clock() - start_time
@@ -276,7 +281,7 @@ def calculate_diameter_from_file(filename, D, T, L, log=None, debug=False, verbo
     # stored as tuples in the results list, which is passed to the write_to_csv function.
     if zero_loss:
         start_time = time.clock()
-        zl_diameter = NewDiameter.new_diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph, debug, True)
+        zl_diameter = Diameter.diameter_algorithm(species_tree, gene_tree, gene_tree_root, dtl_recon_graph, dtl_recon_graph, debug, True)
         zl_diameter_time_taken = time.clock()-start_time
         results += [("Zero Loss Diameter", zl_diameter, zl_diameter_time_taken)]
 
